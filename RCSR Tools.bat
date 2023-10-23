@@ -55,16 +55,13 @@ if /i "%Command%"=="Act"			set "Setup_Select=1" &goto Setup-Choice
 if /i "%Command%"=="Dct"			set "Setup_Select=2" &goto Setup-Choice
 if /i "%Command%"=="Activate"	set "Setup_Select=1" &goto Setup-Choice
 if /i "%Command%"=="Deactivate"	set "Setup_Select=2" &goto Setup-Choice
-
-if exist "%Command%" set "input=%command:"=%"&goto directInput
 goto Input-Error
 
 
 :Input-Context                    
 set Dir=cd /d "%SelectedThing%"
 set SetIMG=set "img=%SelectedThing%"
-cls
-echo. &echo. &echo.
+cls&echo. &echo. &echo.
 if /i "%Context%"=="SRT.Rename"				set "SubtitleExtension=srt"&goto SUB-Rename
 if /i "%Context%"=="ASS.Rename"				set "SubtitleExtension=ass"&goto SUB-Rename
 if /i "%Context%"=="SUB.Rename"				set "SubtitleExtension=sub"&goto SUB-Rename
@@ -73,67 +70,34 @@ if /i "%Context%"=="FI.Deactivate" 			set "Setup=Deactivate" &goto Setup
 goto Input-Error
 
 :Input-Error                      
-echo %TAB%%TAB%%r_% Invalid input.  %_%
-echo.
+echo %TAB%%TAB%%r_% Invalid input.  %_%&echo.
 if defined Context echo %ESC%%TAB%%TAB%%i_%%r_%%Context%%_%
 if not defined Context echo %ESC%%TAB%%TAB%%i_%%r_%%Command%%_%
-echo.
-echo %TAB%%g_%The command, file path, or directory path is unavailable. 
+echo.&echo %TAB%%g_%The command, file path, or directory path is unavailable. 
 goto options
 
 :SUB-Rename
 for %%D in (%xSelected%) do set "SelectedThingPath=%%~dpD"
 cd /d "%SelectedThingPath%"
-set ActTitle=SUBTITLE
-if /i ".%SubtitleExtension%"==".XML" set ActTitle=CHAPTER
-
-	echo                     %i_%%w_% %ActTitle% AUTO RENAME %_%
-	echo               %g_%Rename subtitle to video file name.%_%
-	echo.
-	echo.
-	echo.
+set ActTitle=SUBTITLE&if /i ".%SubtitleExtension%"==".XML" set ActTitle=CHAPTER
+echo                     %i_%%w_% %ActTitle% AUTO RENAME %_%
+echo               %g_%Rename subtitle to video file name.%_%
+echo.&echo.&echo.
 %STAGE1%
-echo.
-call :Timer-start
-set VIDcount=0
-set FILEcount=0
+echo.&call :Timer-start
+set VIDcount=0&set FILEcount=0
 for %%L in (*) do (
 	set "filename=%%~nxL"
 	if /i "%%~xL"==".MKV" call :SUB-Rename-Collect.VID
 	if /i "%%~xL"==".MP4" call :SUB-Rename-Collect.VID
 	if /i "%%~xL"==".%SubtitleExtension%" call :SUB-Rename-Collect.SUB
 )
-
 if %VIDcount% LSS 2 call :SUB-Rename-Method1
-
 %Separator%
-
 if %VIDcount% EQU %SUBcount% call :SUB-Rename-Method2
 if not %VIDcount% EQU %SUBcount% call :SUB-Rename-Method4
-
-echo.
-call :Timer-end
-echo  %g_%The process took %ExecutionTime%%_%
-%separator%
-
-echo  %i_%%gn_% %_% %g_%Press %cc_%^[A^]%g_% to Confirm. Press %r_%^[B^]%g_% to Cancel.%bk_%
-CHOICE /N /C AB
-if %errorlevel%==2 exit
-echo.
-echo.
-echo.
-%STAGE2%
-echo.
-%separator%&call :Timer-start
-set DisplayCount=0
-for /L %%F in (1,1,%VIDcount%) do (
-	set List=%%F
-	if defined VIDfile%%F call :SUB-Rename-Action
-)
-%separator%
-echo.
-echo   %i_%    Done.   %_%
-goto Options
+echo.&echo     %i_%%r_%             Unexpected Error!             %_%
+pause>nul&exit
 
 
 :SUB-Rename-Method1
@@ -143,6 +107,7 @@ echo %ESC%└%_%📄 %SUBfile1%%ESC%
 set "RenBefore=%SUBfile1%"
 set "RenAfter=%VIDfile1:~0,-4%.%SubtitleExtension%"
 echo.&echo.&echo.&echo.
+
 :SUB-Rename-Method1-Redo
 %STAGE2%
 echo.
@@ -219,7 +184,6 @@ goto SUB-Rename-Method2-Redo
 set /a DisplayCount+=1
 call set "VIDfile=%%VIDfile%List%%%"
 call set "SUBfile=%%SUBfile%List%%%"
-
 if defined SUBfile%List% (
 	echo %ESC%┌%c_%🎞 %c_%%VIDfile%%ESC%
 	echo %ESC%└%w_%📄 %_%%SUBfile%%ESC%
@@ -234,7 +198,6 @@ exit /b
 set /a DisplayCount+=1
 call set "VIDfile=%%VIDfile%List%%%"
 call set "SUBfile=%%SUBfile%List%%%"
-
 if defined SUBfile%List% (
 	echo %ESC%┌%c_%🎞 %c_%%VIDfile%%ESC%
 	echo %ESC%│%g_%📄 %SUBfile%%ESC%
@@ -251,7 +214,6 @@ exit /b
 set /a DisplayCount+=1
 call set "VIDfile=%%VIDfile%List%%%"
 call set "SUBfile=%%SUBfile%List%%%"
-
 if defined SUBfile%List% (
 	echo %ESC%┌%c_%🎞 %c_%%VIDfile%%ESC%
 	echo %ESC%│%g_%📄 %VIDfile:~0,-4%.%SubtitleExtension%%ESC%
@@ -267,7 +229,7 @@ exit /b
 :SUB-Rename-Method4
 for %%D in (%xSelected%) do (
 	set "SUBselected=%%~nxD"
-	for /f "tokens=1-26 delims=(-). " %%A in ("%%~nD") do (
+	for /f "tokens=1-26 delims=(-)._ " %%A in ("%%~nD") do (
 		set "CompareA=%%A"
 		set "CompareB=%%B"
 		set "CompareC=%%C"
@@ -370,7 +332,7 @@ exit /b
 if not defined compare%compareMe% exit /b
 call set "VIDcompareKey=%%Compare%CompareMe%%%"
 call set "VIDcompareString=%%VIDcompare:%VIDcompareKey%=%%"
-for %%x in (Bluray,WEB,DL,HD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,DD5,1-Pahe,Pahe) do if /i "%VIDcompareKey%"=="%%x" exit /b
+for %%x in (Bluray,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,DD5,1-Pahe,Pahe,x,WebRip,WebDL,WebHD,DD+7) do if /i "%VIDcompareKey%"=="%%x" exit /b
 if /i not "%VIDcompare%"=="%VIDcompareString%" set /a MatchCountNow+=1 &call set "CompareResult=%%CompareResult:%VIDcompareKey%=%g_%%VIDcompareKey%%bk_%%%"
 exit /b
 
@@ -623,14 +585,12 @@ rem Multi Select, Separate instance
 	set SCMD=\"%curdir%\\resources\\SingleInstanceAccumulator.exe\" \"-c:cmd /c
 	set SRCSRexe=^^^&set xSelected=$files^^^&call \"\"%RCSRTools:\=\\%\"\"\"
 
-
 rem Define registry root
 	set RegExShell=%HKEY%_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\CommandStore\shell
 	set RegExSRT=%HKEY%_CLASSES_ROOT\SystemFileAssociations\.srt\shell
 	set RegExASS=%HKEY%_CLASSES_ROOT\SystemFileAssociations\.ass\shell
+	set RegExSUB=%HKEY%_CLASSES_ROOT\SystemFileAssociations\.sub\shell
 	set RegExXML=%HKEY%_CLASSES_ROOT\SystemFileAssociations\.xml\shell
-
-
 
 rem Generating setup_*.reg
 (
@@ -649,9 +609,9 @@ rem Generating setup_*.reg
 	echo @="%SCMD% set \"Context=ASS.Rename\"%SRCSRexe% \"%%1\""
 	
 	:REG-Context_Menu-SUB_Rename
-	echo [%RegExASS%\RCSR.SUB.Rename]
+	echo [%RegExSUB%\RCSR.SUB.Rename]
 	echo "MUIVerb"="Rename Subtitle"
-	echo [%RegExASS%\RCSR.SUB.Rename\command]
+	echo [%RegExSUB%\RCSR.SUB.Rename\command]
 	echo @="%SCMD% set \"Context=SUB.Rename\"%SRCSRexe% \"%%1\""
 
 	:REG-Context_Menu-XML_Rename
