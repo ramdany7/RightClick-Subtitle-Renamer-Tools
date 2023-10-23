@@ -2,6 +2,7 @@
 setlocal
 cd /d "%~dp0"
 chcp 65001 >nul
+set name=RCSR Tools
 set version=v0.0
 title Right-Click Subtitle Renamer %version%
 
@@ -13,7 +14,15 @@ call :Setup
 if defined Context goto Input-Context
 
 :Intro                            
-echo. 
+if defined Command goto Options-Input
+echo.
+echo.
+echo                     %i_%%w_% Right-Click Subtitle Renamer %Version% %_%
+echo                %g_%Rename subtitle to video file name automatically.%_%
+echo.
+echo                %gn_%Activate%g_%/%gn_%Act%g_%    to activate right-click menu.
+echo                %gn_%Deactivate%g_%/%gn_%Dct%g_%  to deactivate right-click menu. 
+echo.
 goto Options-Input
 
 :Options                          
@@ -42,14 +51,10 @@ set "Command=(none)"
 set /p "Command=%_%%w_%%FolderName%%_%%gn_%>"
 set "Command=%Command:"=%"
 echo %-% &echo %-% &echo %-%
-
-if /i "%Command%"=="setup"		goto Setup-Options
-if /i "%Command%"=="Activate"	set "Setup_Select=1" &goto Setup-Choice
-if /i "%Command%"=="Deactivate"	set "Setup_Select=2" &goto Setup-Choice
-if /i "%Command%"=="uninstall"	set "Setup_Select=2" &goto Setup-Choice
 if /i "%Command%"=="Act"			set "Setup_Select=1" &goto Setup-Choice
 if /i "%Command%"=="Dct"			set "Setup_Select=2" &goto Setup-Choice
-if /i "%Command%"=="Deact"		set "Setup_Select=2" &goto Setup-Choice
+if /i "%Command%"=="Activate"	set "Setup_Select=1" &goto Setup-Choice
+if /i "%Command%"=="Deactivate"	set "Setup_Select=2" &goto Setup-Choice
 
 if exist "%Command%" set "input=%command:"=%"&goto directInput
 goto Input-Error
@@ -62,6 +67,7 @@ cls
 echo. &echo. &echo.
 if /i "%Context%"=="SRT.Rename"				set "SubtitleExtension=srt"&goto SUB-Rename
 if /i "%Context%"=="ASS.Rename"				set "SubtitleExtension=ass"&goto SUB-Rename
+if /i "%Context%"=="SUB.Rename"				set "SubtitleExtension=sub"&goto SUB-Rename
 if /i "%Context%"=="XML.Rename"				set "SubtitleExtension=xml"&goto SUB-Rename
 if /i "%Context%"=="FI.Deactivate" 			set "Setup=Deactivate" &goto Setup
 goto Input-Error
@@ -134,10 +140,11 @@ goto Options
 if %VIDcount% EQU 0 echo.&echo.&echo    %g_%^(No files to be proceed.^)%_%&pause>nul&exit
 echo %ESC%┌%c_%🎞 %c_%%VIDfile1%%ESC%
 echo %ESC%└%_%📄 %SUBfile1%%ESC%
-echo.&echo.&echo.
-%STAGE2%
 set "RenBefore=%SUBfile1%"
 set "RenAfter=%VIDfile1:~0,-4%.%SubtitleExtension%"
+echo.&echo.&echo.&echo.
+:SUB-Rename-Method1-Redo
+%STAGE2%
 echo.
 echo %ESC%┌%c_%🎞 %c_%%VIDfile1%%ESC%
 echo %ESC%│%g_%📄 %RenBefore%%ESC%
@@ -150,7 +157,6 @@ call :timer-end
 echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%gn_%U%g_%^]%g_% Undo.  %g_%^[%r_%X%g_%^]%g_% Close this window.%bk_%
 CHOICE /N /C UX
 if %errorlevel%==2 exit
-if %errorlevel%==1 (
 echo.&echo.&echo.&echo.
 echo %i_%%cc_%2/1%_% %cc_%%u_%Undo..                      %_%
 echo.
@@ -158,11 +164,14 @@ echo %ESC%┌%c_%🎞 %c_%%VIDfile1%%ESC%
 echo %ESC%│%g_%📄 %RenAfter%%ESC%
 echo %ESC%└%w_%📄 %w_%%RenBefore%%ESC%
 ren "%RenAfter%" "%RenBefore%"
-echo.&echo.
-echo %TAB%%g_% Press %r_%X%g_% to close this window.
-)
-CHOICE /N /C X
-exit
+echo.
+echo   %i_%    Done.   %_%
+echo.&echo.&echo.&echo.
+call :timer-end
+echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%cc_%R%g_%^]%g_% Redo.  %g_%^[%r_%X%g_%^]%g_% Close this window.%bk_%
+CHOICE /N /C RX
+if %errorlevel%==2 exit
+goto SUB-Rename-Method1-Redo
 
 :SUB-Rename-Method2
 for /L %%F in (1,1,%VIDcount%) do set "List=%%F"&if defined VIDfile%%F call :SUB-Rename-Method2-Display
@@ -174,6 +183,7 @@ CHOICE /N /C RC
 if %errorlevel%==2 exit
 echo.&echo.&echo.
 
+:SUB-Rename-Method2-Redo
 %STAGE2%
 echo.
 %separator%&call :Timer-start
@@ -199,10 +209,11 @@ echo   %i_%    Done.   %_%
 echo.
 echo  %g_%The process took %ExecutionTime%%_%
 %separator%
-echo.&echo.
-echo %TAB%%g_% Press %r_%X%g_% to close this window.
-CHOICE /N /C X
-exit
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%cc_%R%g_%^] to Redo. Press %g_%^[%r_%X%g_%^] to Close this window.%bk_%
+CHOICE /N /C RX
+if %errorlevel%==2 exit
+echo.&echo.&echo.
+goto SUB-Rename-Method2-Redo
 
 :SUB-Rename-Method2-Display
 set /a DisplayCount+=1
@@ -533,7 +544,7 @@ exit /b
 echo.&echo.
 echo               %i_%     %name% %version%     %_%
 echo.
-echo            %g_%Activate or Deactivate Folder Icon Tools on Explorer Right Click menus
+echo            %g_%Activate or Deactivate Subtitle Renamer Tools on Explorer Right Click menus
 echo            %g_%Press %gn_%1%g_% to %w_%Activate%g_%, Press %gn_%2%g_% to %w_%Deactivate%g_%, Press %gn_%3%g_% to %w_%Exit%g_%.%bk_%
 echo.&echo.
 choice /C:123 /N
@@ -568,7 +579,9 @@ if /i "%setup_select%"=="1" (
 	echo cd /d "%%~dp0">"%RCSRD%"
 	echo set "Setup=Deactivate" ^&call "%name%" ^|^|pause^>nul :%version:v0.=%>>"%RCSRD%"
 	echo %w_%%name% %version%  %cc_%Activated%_%
-	echo %g_%Folder Icon Tools has been added to the right-click menus. %_%
+	echo %g_%Subtitle Renamer Tools has been added to the right-click menus. %_%
+	echo %g_%"Rename Subtitle" added to .srt, .ass, .sub and .xml file context menu.
+	echo.&echo.&echo.&echo.
 	if not defined input (goto intro)
 )
 
@@ -577,7 +590,7 @@ if /i "%setup_select%"=="2" (
 	del "%RCSR%\resources\deactivating.RCSR" 2>nul
 	if exist "%RCSRD%" del "%RCSRD%"
 	echo %w_%%name% %version%  %r_%Deactivated%_%
-	echo %g_%Folder Icon Tools have been removed from the right-click menus.%_%
+	echo %g_%Subtitle Renamer Tools have been removed from the right-click menus.%_%
 if /i "%Setup%"=="Deactivate" set "Setup=Deactivated"
 )
 if /i "%Setup%"=="Deactivated" %p5%&%p3%&exit
@@ -634,6 +647,12 @@ rem Generating setup_*.reg
 	echo "MUIVerb"="Rename Subtitle"
 	echo [%RegExASS%\RCSR.ASS.Rename\command]
 	echo @="%SCMD% set \"Context=ASS.Rename\"%SRCSRexe% \"%%1\""
+	
+	:REG-Context_Menu-SUB_Rename
+	echo [%RegExASS%\RCSR.SUB.Rename]
+	echo "MUIVerb"="Rename Subtitle"
+	echo [%RegExASS%\RCSR.SUB.Rename\command]
+	echo @="%SCMD% set \"Context=SUB.Rename\"%SRCSRexe% \"%%1\""
 
 	:REG-Context_Menu-XML_Rename
 	echo [%RegExXML%\RCSR.XML.Rename]
