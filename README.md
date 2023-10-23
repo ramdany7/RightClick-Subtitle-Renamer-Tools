@@ -3,7 +3,7 @@ Adding "Subtitle Renamer" to your right-click menu to automatically rename subti
 ## 
 
 
-**RCSR v0.0** 
+**RCSR Tools v0.0** 
 
 What the script does?
 - Adding context menu for `.ass` `.srt` `.sub` and `.xml` files.
