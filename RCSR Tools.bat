@@ -1,5 +1,4 @@
 @echo off
-setlocal
 cd /d "%~dp0"
 chcp 65001 >nul
 set name=RCSR Tools
@@ -85,23 +84,89 @@ echo               %g_%Rename subtitle to video file name.%_%
 echo.&echo.&echo.
 %STAGE1%
 echo.&call :Timer-start
-set VIDcount=0&set FILEcount=0
+set FILEcount=0
+set MPcount=0
+set MKVcount=0
+set SUBcount=0
+set SUBScount=0
+set MATCHEDcount=0
+set VIDcount=0
+set VIDScount=0
+setlocal EnableDelayedExpansion
 for %%L in (*) do (
 	set "filename=%%~nxL"
-	if /i "%%~xL"==".MKV" call :SUB-Rename-Collect.VID
-	if /i "%%~xL"==".MP4" call :SUB-Rename-Collect.VID
-	if /i "%%~xL"==".%SubtitleExtension%" call :SUB-Rename-Collect.SUB
+	if /i "%%~xL"==".MKV" set /a MKVcount+=1&call :SUB-Rename-Collect.VID
+	if /i "%%~xL"==".MP4" set /a MPcount+=1&call :SUB-Rename-Collect.VID
+	if /i "%%~xL"==".%SubtitleExtension%" set /a SUBScount+=1&call :SUB-Rename-Collect.SUB
 )
+setlocal DisableDelayedExpansion
 if %VIDcount% LSS 2 call :SUB-Rename-Method1
 %Separator%
 if %VIDcount% EQU %SUBcount% call :SUB-Rename-Method2
-if not %VIDcount% EQU %SUBcount% call :SUB-Rename-Method4
+setlocal EnableDelayedExpansion
+if not %VIDcount% EQU %SUBcount% call :SUB-Rename-Method3
+setlocal DisableDelayedExpansion
 echo.&echo     %i_%%r_%             Unexpected Error!             %_%
 pause>nul&exit
 
+:SUB-Rename-Collect.VID
+if exist "%filename:~0,-4%.%SubtitleExtension%" (
+	echo %ESC%%g_%┌%g_%🎞 %g_%%filename%%ESC%
+	echo %ESC%%g_%└%g_%📄 %g_%%filename:~0,-4%.%SubtitleExtension% %gn_%✓%g_%%ESC%
+	echo.
+	set /a FILEcount+=1
+	set /a MATCHEDcount+=1
+	set "FILEname%FILEcount%=%filename%"
+	exit /b
+)
+set "VIDfilter="
+set /a VIDcount+=1
+set /a FILEcount+=1
+set "FILEname%FILEcount%=%filename%"
+set "VIDfile%VIDcount%=%filename%"
+for %%f in (Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,x,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1) do (
+	if "!VIDfilter!"=="" set "VIDfilter=!filename:%%f=!"
+	set "VIDfilter=!VIDfilter:%%f=!"
+)
+set "VIDfilter%VIDcount%=%VIDfilter%"
+exit /b
+
+:SUB-Rename-Collect.SUB
+if exist "%filename:~0,-4%.mkv" exit /b
+if exist "%filename:~0,-4%.mp4" exit /b
+set /a SUBcount+=1
+set /a FILEcount+=1
+set "FILEname%FILEcount%=%filename%"
+set "SUBfile%SUBcount%=%filename%"
+rem setlocal EnableDelayedExpansion
+rem for %%f in (Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,x,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1) do (
+rem 	if "!SUBfilter!"=="" set "SUBfilter=!filename:%%f=!"
+rem 	set "SUBfilter=!SUBfilter:%%f=!"
+rem )
+rem setlocal DisableDelayedExpansion
+rem Set "SUBfilter%SUBcount%=%SUBfilter%"
+exit /b
+
+:SUB-Rename-Collect-Result
+set /a VIDScount=%MPcount%+%MKVcount%
+if %VIDScount%	GTR 0	set "resultVID=%c_%%VIDScount%%g_% Videos found."
+if %MKVcount%		GTR 0	set "resultMKV=^(%MKVcount%^) MKV"
+if %MKVcount%		EQU %VIDScount% set "resultMKV=All are MKV."
+if %MPcount%		GTR 0	set "resultMP4=^(%MPcount%^) MP4"
+if %MPcount%		EQU %VIDScount% set "resultMP4=All are MP4."
+if %SUBScount%	GTR 0	set "resultSUB=%yy_%%SUBScount%%g_% Subtitle/*.%SubtitleExtension% found."
+if %MATCHEDcount%	GTR 0	set "resultMATCHED=%g_%^(%gn_%%MATCHEDcount%%g_%^) Video already have *.%SubtitleExtension% subtitle."
+if %VIDcount% GTR %MATCHEDcount% set "resultMATCHED=%gn_%^(All^) video already have *.%SubtitleExtension% subtitle."
+echo   %resultVID% %resultMKV% %resultMP4% %resultMATCHED%
+echo   %resultSUB% 
+if %VIDcount%     EQU 0 if %MATCHEDcount% EQU 0 echo.&echo  %r_%No .mkv or .mp4 found in this directory.%_%
+exit /b
 
 :SUB-Rename-Method1
-if %VIDcount% EQU 0 echo.&echo.&echo    %g_%^(No files to be proceed.^)%_%&pause>nul&exit
+if %VIDcount% EQU 0 (
+	call :SUB-Rename-Collect-Result
+	pause>nul&exit
+)
 echo %ESC%┌%c_%🎞 %c_%%VIDfile1%%ESC%
 echo %ESC%└%_%📄 %SUBfile1%%ESC%
 set "RenBefore=%SUBfile1%"
@@ -109,31 +174,28 @@ set "RenAfter=%VIDfile1:~0,-4%.%SubtitleExtension%"
 echo.&echo.&echo.&echo.
 
 :SUB-Rename-Method1-Redo
-%STAGE2%
-echo.
+%STAGE2%&echo.
 echo %ESC%┌%c_%🎞 %c_%%VIDfile1%%ESC%
 echo %ESC%│%g_%📄 %RenBefore%%ESC%
 echo %ESC%└%w_%📄 %w_%%RenAfter%%ESC%
 ren "%RenBefore%" "%RenAfter%"
-echo.
-echo   %i_%    Done.   %_%
-echo.&echo.&echo.&echo.
-call :timer-end
-echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%gn_%U%g_%^]%g_% Undo.  %g_%^[%r_%X%g_%^]%g_% Close this window.%bk_%
+echo.&echo   %i_%    Done.   %_%
+echo.&echo.&echo.&echo.&call :timer-end
+echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%gn_%U%g_%^] Undo.  %g_%^[%r_%X%g_%^] Close this window.%bk_%
 CHOICE /N /C UX
 if %errorlevel%==2 exit
 echo.&echo.&echo.&echo.
-echo %i_%%cc_%2/1%_% %cc_%%u_%Undo..                      %_%
-echo.
+echo %i_%%cc_%2/1%_% %cc_%%u_%Undo..                      %_%&echo.
 echo %ESC%┌%c_%🎞 %c_%%VIDfile1%%ESC%
 echo %ESC%│%g_%📄 %RenAfter%%ESC%
 echo %ESC%└%w_%📄 %w_%%RenBefore%%ESC%
 ren "%RenAfter%" "%RenBefore%"
+echo.&echo   %i_%    Done.   %_%
+echo.&echo.&echo.&echo.&call :timer-end
+echo.&echo.
+call :SUB-Rename-Collect-Result
 echo.
-echo   %i_%    Done.   %_%
-echo.&echo.&echo.&echo.
-call :timer-end
-echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%cc_%R%g_%^]%g_% Redo.  %g_%^[%r_%X%g_%^]%g_% Close this window.%bk_%
+echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%cc_%R%g_%^] Redo.  %g_%^[%r_%X%g_%^] Close this window.%bk_%
 CHOICE /N /C RX
 if %errorlevel%==2 exit
 goto SUB-Rename-Method1-Redo
@@ -141,6 +203,7 @@ goto SUB-Rename-Method1-Redo
 :SUB-Rename-Method2
 for /L %%F in (1,1,%VIDcount%) do set "List=%%F"&if defined VIDfile%%F call :SUB-Rename-Method2-Display
 echo.&call :Timer-end
+echo.&echo.&call :SUB-Rename-Collect-Result
 echo  %g_%The process took %ExecutionTime%%_%
 %separator%
 echo  %i_%%gn_% %_% %g_%Press %g__%^[%cc_%R%g_%^] to Rename. Press %g_%^[%r_%C%g_%^] to Cancel.%bk_%
@@ -226,6 +289,200 @@ if defined SUBfile%List% (
 if not %DisplayCount% EQU %VIDcount% echo.
 exit /b
 
+:SUB-Rename-Method3
+for %%D in (%xSelected%) do (
+	set /a SCount+=1
+	set "SUBselected!SCount!=%%~nxD"
+	set "SUBselected=%%~nxD"
+	call :SUB-Rename-Method3-Delim
+	call :SUB-Rename-Method3-Result
+)
+
+call :Timer-end
+echo.&echo.
+call :SUB-Rename-Collect-Result
+echo.
+echo  %g_%The process took %ExecutionTime%%_%
+%separator%
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%cc_%R%g_%^] to Rename. Press %g_%^[%r_%C%g_%^] to Cancel.%bk_%
+CHOICE /N /C RC
+if %errorlevel%==2 exit
+echo.&echo.&echo.
+
+%STAGE2%
+echo.
+%separator%
+call :Timer-start
+call :SUB-Rename-Method3-Action
+echo.&call :Timer-end
+echo   %_%%i_%    Done.   %_%
+echo.&echo.
+call :SUB-Rename-Collect-Result
+echo.
+echo.&echo  %g_%The process took %ExecutionTime%%_%
+%separator%
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%gn_%U%g_%^] to Undo. Press %g_%^[%r_%X%g_%^] to Close this window.%bk_%
+CHOICE /N /C UX
+if %errorlevel%==2 exit
+echo.&echo.&echo.
+:SUB-Rename-Method3-Redo
+echo %i_%%cc_%2/1%_% %cc_%%u_%Undo..                      %_%
+echo.
+%separator%
+call :Timer-start
+call :SUB-Rename-Method3-Undo
+echo.&call :Timer-end
+echo   %_%%i_%    Done.   %_%
+echo.
+echo  %g_%The process took %ExecutionTime%%_%
+%separator%
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%cc_%R%g_%^] to Redo. Press %g_%^[%r_%X%g_%^] to Close this window.%bk_%
+CHOICE /N /C RX
+if %errorlevel%==2 exit
+echo.&echo.&echo.
+
+%STAGE2%
+echo.
+%separator%
+call :Timer-start
+call :SUB-Rename-Method3-Action
+echo.&call :Timer-end
+echo   %_%%i_%    Done.   %_%
+echo.&echo  %g_%The process took %ExecutionTime%%_%
+%separator%
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%gn_%U%g_%^] to Undo. Press %g_%^[%r_%X%g_%^] to Close this window.%bk_%
+CHOICE /N /C UX
+if %errorlevel%==2 exit
+echo.&echo.&echo.
+goto SUB-Rename-Method3-Redo
+pause>nul&exit
+
+:SUB-Rename-Method3-Delim
+set "MatchCountLast="
+set "SUBfilter="
+for %%f in (Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,x,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1) do (
+	if "!SUBfilter!"=="" set "SUBfilter=!SUBselected:%%f=!"
+	set "SUBfilter=!SUBfilter:%%f=!"
+)
+set "SUBfilter%SCount%=%SUBfilter%"
+call set "SUBfilter=%%SUBfilter%SCount%%%"
+for /f "tokens=1-26 delims=(-)._ " %%A in ("!SUBfilter!") do (
+	set "KeyA=%%A"
+	set "KeyB=%%B"
+	set "KeyC=%%C"
+	set "KeyD=%%D"
+	set "KeyE=%%E"
+	set "KeyF=%%F"
+	set "KeyG=%%G"
+	set "KeyH=%%H"
+	set "KeyI=%%I"
+	set "KeyJ=%%J"
+	set "KeyK=%%K"
+	set "KeyL=%%L"
+	set "KeyM=%%M"
+	set "KeyN=%%N"
+	set "KeyO=%%O"
+	set "KeyP=%%P"
+	set "KeyQ=%%Q"
+	set "KeyR=%%R"
+	set "KeyS=%%S"
+	set "KeyT=%%T"
+	set "KeyU=%%U"
+	set "KeyV=%%V"
+	set "KeyW=%%W"
+	set "KeyX=%%X"
+	set "KeyY=%%Y"
+	set "KeyZ=%%Z"
+)
+
+for /L %%n in (1,1,%VIDcount%) do (
+	set "num=%%n"
+	set "MatchParts="
+	set "MatchShow="
+	set "MatchCount=0"
+	if not defined MatchCountLast set MatchCountLast=0
+	for %%D in (A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z) do (
+		if defined Key%%D (
+			set "part=%%D"
+			call set "SUBkey=%%Key!part!%%"
+			call set "VIDfilter=%%VIDfilter!num!%%"
+			call set "VIDselected=%%VIDfile!num!%%"
+			call :SUB-Rename-Method3-Compare
+		)
+	)
+)
+exit /b
+
+:SUB-Rename-Method3-Compare
+call set "VIDcompare=%%VIDfilter:%SUBkey%=%%"
+if /i "%VIDfilter%"=="%VIDcompare%" exit /b
+if not defined MatchParts (set MatchParts="%SUBkey%") else set MatchParts=%MatchParts%, "%SUBkey%"
+if not defined MatchShow (call set "MatchShow=%%VIDselected:%SUBkey%=%g_%%SUBkey%%bk_%%%") else call set "MatchShow=%%MatchShow:%SUBkey%=%g_%%SUBkey%%bk_%%%"
+set /a MatchCount+=1
+if %MatchCount% GTR %MatchCountLast% (
+	set "MatchShowKey=%MatchShow%"
+	set "MatchCountlast=%MatchCount%"
+	set "MatchVID=%VIDselected%"
+	set "MatchSUB=%SUBselected%"
+	set "MatchKey=%MatchParts%"
+)
+exit /b
+
+:SUB-Rename-Method3-Result
+if not defined MatchVID (
+	echo %ESC%%g_%┌%g_%📄 %g_%%SUBselected%%ESC%
+	echo %ESC%%r_%└%r_%🗋%g_%No file match!%ESC%
+	exit /b
+)
+set "MatchVID%Scount%=%MatchVID%"
+set "MatchKey%Scount%=%MatchKey%"
+set "MatchSUB%Scount%=%MatchSUB%"
+set "MatchCount%Scount%=%MatchCount%"
+set "MatchShow%Scount%=%MatchShowKey%"
+echo.
+echo %ESC%┌%yy_%📄 %MatchSUB%%ESC%
+echo %ESC%│   %MatchShowKey%
+echo %ESC%└%c_%🎞  %MatchVID%%ESC%
+exit /b
+
+:SUB-Rename-Method3-Action
+if not defined Acount (set /a Acount+=1)
+call set "SUBselected=%%SUBselected%Acount%%%"
+if not defined MatchVID%Acount% (
+	echo %ESC%%g_%┌%g_%📄 %g_%%SUBselected%%ESC%
+	echo %ESC%%r_%└%r_%🗋%g_%No file match!%ESC%
+	exit /b
+)
+call set "SUBselected=%%MatchSUB%Acount%%%"
+call set "VIDselected=%%MatchVID%Acount%%%"
+echo.
+echo %ESC%┌%c_%🎞  %VIDselected%%ESC%
+echo %ESC%│%g_%📄 %SUBselected%%ESC%
+echo %ESC%└%w_%📄 %VIDselected:~0,-4%.%SubtitleExtension%%ESC%%r_%
+ren "%SUBselected%" "%VIDselected:~0,-4%.%SubtitleExtension%"
+if %Acount% EQU %Scount% set "Acount="&exit /b
+set /a Acount+=1
+goto SUB-Rename-Method3-Action
+
+:SUB-Rename-Method3-Undo
+if not defined Acount (set /a Acount+=1)
+call set "SUBselected=%%SUBselected%Acount%%%"
+if not defined MatchVID%Acount% (
+	echo %ESC%%g_%┌%g_%📄 %g_%%SUBselected%%ESC%
+	echo %ESC%%r_%└%r_%🗋%g_%No file match!%ESC%
+	exit /b
+)
+call set "SUBselected=%%MatchSUB%Acount%%%"
+call set "VIDselected=%%MatchVID%Acount%%%"
+echo.
+echo %ESC%┌%c_%🎞  %VIDselected%%ESC%
+echo %ESC%│%g_%📄 %VIDselected:~0,-4%.%SubtitleExtension%%ESC%
+echo %ESC%└%w_%📄 %SUBselected%%ESC%%r_%
+ren "%VIDselected:~0,-4%.%SubtitleExtension%" "%SUBselected%"
+if %Acount% EQU %Scount% set "Acount="&exit /b
+set /a Acount+=1
+goto SUB-Rename-Method3-Undo
+
 :SUB-Rename-Method4
 for %%D in (%xSelected%) do (
 	set "SUBselected=%%~nxD"
@@ -266,6 +523,7 @@ for %%D in (%xSelected%) do (
 	)
 )
 echo.&call :Timer-end
+call :SUB-Rename-Collect-Result
 echo  %g_%The process took %ExecutionTime%%_%
 %separator%
 echo  %i_%%gn_% %_% %g_%Press %g__%^[%cc_%R%g_%^] to Rename. Press %g_%^[%r_%C%g_%^] to Cancel.%bk_%
@@ -321,10 +579,11 @@ echo.&echo.&echo.
 goto SUB-Rename-Method4-Redo
 
 :SUB-Rename-Method4-Setup
-call set "VIDcompare=%%VIDfile%List%%%"
-set "CompareResult=%VIDcompare%"
+call set "VIDcompare=%%VIDfilter%List%%%"
+call set "VIDfile=%%VIDfile%List%%%"
+set "CompareResult=%VIDfile%"
 for %%D in (A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z) do set "compareMe=%%D"&call :SUB-Rename-Method4-compare
-if %MatchCountNow% GTR %MatchCountLast% set "VIDselected=%VIDcompare%"&set "SUBmatchResult=%CompareResult%"&set "MatchCountLast=%MatchCountNow%"
+if %MatchCountNow% GTR %MatchCountLast% set "VIDselected=%VIDfile%"&set "SUBmatchResult=%CompareResult%"&set "MatchCountLast=%MatchCountNow%"
 rem echo %ESC%%CompareResult%%ESC%
 exit /b
 
@@ -332,8 +591,9 @@ exit /b
 if not defined compare%compareMe% exit /b
 call set "VIDcompareKey=%%Compare%CompareMe%%%"
 call set "VIDcompareString=%%VIDcompare:%VIDcompareKey%=%%"
-for %%x in (Bluray,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,DD5,1-Pahe,Pahe,x,WebRip,WebDL,WebHD,DD+7) do if /i "%VIDcompareKey%"=="%%x" exit /b
-if /i not "%VIDcompare%"=="%VIDcompareString%" set /a MatchCountNow+=1 &call set "CompareResult=%%CompareResult:%VIDcompareKey%=%g_%%VIDcompareKey%%bk_%%%"
+rem for %%x in (Bluray,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,DD5,1-Pahe,Pahe,x,WebRip,WebDL,WebHD,DD+7) do if /i "%VIDcompareKey%"=="%%x" exit /b
+if /i not "%VIDcompare%"=="%VIDcompareString%" set /a MatchCountNow+=1 &call set "CompareResult=%VIDCompareKey%,%CompareResult%"
+echo Match: "%CompareResult%"
 exit /b
 
 :SUB-Rename-Method4-Result
@@ -377,32 +637,6 @@ echo %ESC%└%w_%📄 %SUBselected%%ESC%%r_%
 ren "%VIDselected:~0,-4%.%SubtitleExtension%" "%SUBselected%"
 goto SUB-Rename-Method4-Undo
 exit /b
-
-
-:SUB-Rename-Collect.VID
-if exist "%filename:~0,-4%.%SubtitleExtension%" (
-	echo %ESC%%g_%┌%g_%🎞 %g_%%filename%%ESC%
-	echo %ESC%%g_%└%g_%📄 %g_%%filename:~0,-4%.%SubtitleExtension% %gn_%✓%g_%%ESC%
-	echo.
-	set /a FILEcount+=1
-	set "FILEname%FILEcount%=%filename%"
-	exit /b
-)
-set /a VIDcount+=1
-set /a FILEcount+=1
-set "FILEname%FILEcount%=%filename%"
-set "VIDfile%VIDcount%=%filename%"
-exit /b
-
-:SUB-Rename-Collect.SUB
-if exist "%filename:~0,-4%.mkv" exit /b
-if exist "%filename:~0,-4%.mp4" exit /b
-set /a SUBcount+=1
-set /a FILEcount+=1
-set "FILEname%FILEcount%=%filename%"
-set "SUBfile%SUBcount%=%filename%"
-exit /b
-
 
 :FileSize                         
 if "%size_B%"=="" set size=0 KB&echo %r_%Error: Fail to get file size!%_% &exit /b
