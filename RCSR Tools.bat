@@ -65,6 +65,7 @@ if /i "%Context%"=="SRT.Rename"				set "SubtitleExtension=srt"&goto SUB-Rename
 if /i "%Context%"=="ASS.Rename"				set "SubtitleExtension=ass"&goto SUB-Rename
 if /i "%Context%"=="SUB.Rename"				set "SubtitleExtension=sub"&goto SUB-Rename
 if /i "%Context%"=="XML.Rename"				set "SubtitleExtension=xml"&goto SUB-Rename
+if /i "%Context%"=="ALL.Rename"				goto SUB-Universal-Rename
 if /i "%Context%"=="FI.Deactivate" 			set "Setup=Deactivate" &goto Setup
 goto Input-Error
 
@@ -75,6 +76,262 @@ if not defined Context echo %ESC%%TAB%%TAB%%i_%%r_%%Command%%_%
 echo.&echo %TAB%%g_%The command, file path, or directory path is unavailable. 
 goto options
 
+:No-Vids
+echo.&echo.&echo.
+echo %TAB%%w_%No Video selected.
+pause>nul&exit
+
+:No-Subs
+echo.&echo.&echo.
+echo %TAB%%w_%No Subtitle selected.
+pause>nul&exit
+
+:No-VidSub
+echo.&echo.&echo.
+echo %TAB%%w_%No Video ^& Subtitle selected.
+pause>nul&exit
+
+:SUB-Universal-Rename
+setlocal EnableDelayedExpansion
+echo                     %i_%%w_% SUBTITLE AUTO RENAME %_%
+echo               %g_%Rename subtitle to video file name.%_%
+echo.&echo.&echo.
+set MKV=0&set MPF=0&set SRT=0&set ASS=0&set XML=0&set SUB=0&set VIDS=0&set SUBS=0&set Vc=0&set Sc=0&set Fc=0
+for %%L in (%xSelected%) do (
+	set "file=%%~nxL"
+	set "name=%%~nL"
+	set "ext=%%~xL"
+	set "SelectedThingPath=%%~dpL"
+	if /i "%%~xL"==".MKV" set /a MKV+=1&call :Collect-Vids
+	if /i "%%~xL"==".MP4" set /a MPF+=1&call :Collect-Vids
+	if /i "%%~xL"==".SRT" set /a SRT+=1&call :Collect-Subs
+	if /i "%%~xL"==".ASS" set /a ASS+=1&call :Collect-Subs
+	if /i "%%~xL"==".XML" set /a XML+=1&call :Collect-Subs
+	if /i "%%~xL"==".SUB" set /a SUB+=1&call :Collect-Subs
+)
+cd /d "%SelectedThingPath%"
+set /a VIDS=%MKV%+%MPF%
+set /a SUBS=%SRT%+%ASS%+%XML%+%SUB%
+if %SUBS%==0 if %VIDS%==0 goto No-VidSub
+if %VIDS%==0 goto No-Vids
+if %SUBS%==0 goto No-Subs
+set /a VS=%VIDS%+%SUBS%
+if %VS%==2 (call :Method1) else call :Method2
+
+setlocal DisableDelayedExpansion
+echo.&echo     %i_%%r_%             Unexpected Error!             %_%
+pause>nul&exit
+
+:Collect-Vids
+set /a Fc+=1
+set "Ffile%Fc%=%file%"
+set "Fname%Fc%=%name%"
+set "Fext%Fc%=%ext%"
+
+set /a Vc+=1
+set "Vfile%Vc%=%file%"
+set "Vname%Vc%=%name%"
+set "Vext%Vc%=%ext%"
+set "Vfilter="
+for %%f in (%VidFilter%) do (
+	if "!Vfilter!"=="" set "Vfilter=!name:%%f=!"
+	set "Vfilter=!Vfilter:%%f=!"
+)
+set "Vfilter=%Vfilter:(=,%"
+set "Vfilter=%Vfilter:-=,%"
+set "Vfilter=%Vfilter:)=,%"
+set "Vfilter=%Vfilter:.=,%"
+set "Vfilter=%Vfilter:_=,%"
+set "Vfilter=%Vfilter: =,%"
+set "Vfilter=%Vfilter:,,,,,=,%"
+set "Vfilter=%Vfilter:,,,,=,%"
+set "Vfilter=%Vfilter:,,,=,%"
+set "Vfilter=%Vfilter:,,=,%"
+set "Vfilter%Vc%=%Vfilter%"
+set "Ffilter%Fc%=%Vfilter%"
+exit /b
+
+:Collect-Subs
+set /a Fc+=1
+set "Ffile%Fc%=%file%"
+set "Fname%Fc%=%name%"
+set "Fext%Fc%=%ext%"
+
+set /a Sc+=1
+set "Sfile%Sc%=%file%"
+set "Sname%Sc%=%name%"
+set "Sext%Sc%=%ext%"
+set "Sfilter="
+for %%f in (%SubFilter%) do (
+	if "!Sfilter!"=="" set "Sfilter=!name:%%f=!"
+	set "Sfilter=!Sfilter:%%f=!"
+)
+set "Sfilter=%Sfilter:(=,%"
+set "Sfilter=%Sfilter:-=,%"
+set "Sfilter=%Sfilter:)=,%"
+set "Sfilter=%Sfilter:.=,%"
+set "Sfilter=%Sfilter:_=,%"
+set "Sfilter=%Sfilter: =,%"
+set "Sfilter=%Sfilter:,,,,,=,%"
+set "Sfilter=%Sfilter:,,,,=,%"
+set "Sfilter=%Sfilter:,,,=,%"
+set "Sfilter=%Sfilter:,,=,%"
+set "Sfilter%Sc%=%Sfilter%"
+set "Ffilter%Fc%=%Sfilter%"
+exit /b
+
+
+:Method1
+%STAGE1%
+echo     %g_%Mode: %gn_%1 vs 1%_% 
+echo.
+if "%Sname1%"=="%Vname1%" (
+	echo %ESC%┌%c_%🎞 %c_%%Vfile1%%ESC%
+	echo %ESC%└%_%📄 %Sfile1%%ESC%
+	echo.
+	echo %TAB%%w_%Filename already match.
+	pause>nul&exit
+)
+echo %ESC%┌%c_%🎞 %c_%%Vfile1%%ESC%
+echo %ESC%└%_%📄 %Sfile1%%ESC%
+set "RenBefore=%Sfile1%"
+set "RenAfter=%Vname1%%Sext1%"
+echo.&echo.&echo.&echo.
+
+:Method1-Redo
+call :Timer-start
+%STAGE2%&echo.
+echo %ESC%┌%c_%🎞 %c_%%Vfile1%%ESC%
+echo %ESC%│%g_%📄 %RenBefore%%ESC%
+echo %ESC%└%w_%📄 %w_%%RenAfter%%ESC%
+ren "%RenBefore%" "%RenAfter%"
+echo.&echo   %i_%    Done.   %_%
+echo.&echo.&echo.&echo.&call :Timer-end
+echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%gn_%U%g_%^] Undo.  %g_%^[%r_%X%g_%^] Close this window.%bk_%
+CHOICE /N /C UX
+if %errorlevel%==2 exit
+echo.&echo.&echo.&echo.&call :Timer-start
+echo %i_%%cc_%2/1%_% %cc_%%u_%Undo..                      %_%&echo.
+echo %ESC%┌%c_%🎞 %c_%%Vfile1%%ESC%
+echo %ESC%│%g_%📄 %RenAfter%%ESC%
+echo %ESC%└%w_%📄 %w_%%RenBefore%%ESC%
+ren "%RenAfter%" "%RenBefore%"
+echo.&echo   %i_%    Done.   %_%
+echo.&echo.&echo.&echo.&call :timer-end
+echo.&echo.
+echo.
+echo %TAB%%g_%The process took %ExecutionTime% ^| %g_%^[%cc_%R%g_%^] Redo.  %g_%^[%r_%X%g_%^] Close this window.%bk_%
+CHOICE /N /C RX
+if %errorlevel%==2 exit
+goto Method1-Redo
+
+:Method2
+%STAGE1%
+call :Timer-start
+echo.
+%Separator%
+echo.
+for /L %%s in (1,1,%Sc%) do (
+	set matched=0
+	for /L %%v in (1,1,%Vc%) do (
+		set "match=0"
+		set "Mkey="
+		for %%S in (!Sfilter%%s!) do (
+			for %%V in (!Vfilter%%v!) do (
+				set "Key=%%S"
+				if /i "%%S"=="%%V" (
+					set /a match+=1
+					if /i "!Mkey!"=="" (set "Mkey=!Key!") else set "Mkey=!Mkey!, !Key!"
+					if !match! gtr !matched! (
+						set "MVid=%%v"
+						set "MVfile=!Vfile%%v!"
+						set "MVname=!Vname%%v!"
+						set  "MVext=!Vext%%v!"
+						
+						set "MSid=%%s"
+						set "MSfile=!Sfile%%s!"
+						set "MSname=!Sname%%s!"
+						set  "MSext=!Sext%%s!"
+						
+						set "Mk=!Mkey!"
+						set "matched=!match!"
+					)
+				)
+			)
+		)
+	)
+	if not !matched! equ 0 (
+		set /a Mc+=1
+		set "MVfile!Mc!=!MVfile!"
+		set "MVname!Mc!=!MVname!"
+		set  "MVext!Mc!=!MVext!"
+		
+		set "MSfile!Mc!=!MSfile!"
+		set "MSname!Mc!=!MSname!"
+		set  "MSext!Mc!=!MSext!"
+		
+		set "Mk%Mc%=!Mk!"
+		
+		echo %ESC%┌%c_%🎞 %c_%!MVfile!%ESC%
+		echo %ESC%│%g_%   !Mk!%ESC%
+		echo %ESC%└%w_%📄 %w_%!MSfile!%ESC%
+		echo.
+	) else (
+		echo %ESC%%g_%┌%c_%🗋 %g_%No file match.%ESC%
+		echo %ESC%%g_%└%w_%📄 %w_%!Sfile%%s!%ESC%
+		echo.
+	)
+)
+call :Timer-end
+echo.
+echo  %g_%The process took %ExecutionTime%%_%
+%separator%
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%cc_%R%g_%^] to Rename. Press %g_%^[%r_%C%g_%^] to Cancel.%bk_%
+CHOICE /N /C RC
+if %errorlevel%==2 exit
+:Method2-Redo
+echo.&echo.&echo.&echo.
+%STAGE2%
+call :Timer-start
+echo.
+%Separator%
+for /L %%m in (1,1,%Mc%) do (
+	echo %ESC%┌%c_%🎞 %c_%!MVfile%%m!%ESC%
+	echo %ESC%│%g_%   !MSfile%%m!%ESC%
+	echo %ESC%└%w_%📄 %w_%!MVname%%m!!MSext%%m!%ESC%%r_%
+	ren "!MSfile%%m!" "!MVname%%m!!MSext%%m!"
+)
+echo.&call :Timer-end
+echo   %_%%i_%    Done.   %_%
+echo.
+echo  %g_%The process took %ExecutionTime%%_%
+%separator%
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%gn_%U%g_%^] to Undo. Press %g_%^[%r_%X%g_%^] to Close this window.%bk_%
+CHOICE /N /C UX
+if %errorlevel%==2 exit
+echo.&echo.&echo.
+
+echo %i_%%cc_%2/1%_% %cc_%%u_%Undo..                      %_%
+echo.
+%separator%&call :Timer-start
+for /L %%m in (1,1,%Mc%) do (
+	echo %ESC%┌%c_%🎞 %c_%!MVfile%%m!%ESC%
+	echo %ESC%│%g_%   !MVname%%m!!MSext%%m!%ESC%
+	echo %ESC%└%w_%📄 %w_%!MSfile%%m!%ESC%%r_%
+	ren "!MVname%%m!!MSext%%m!" "!MSfile%%m!"
+)
+echo.&call :Timer-end
+echo   %_%%i_%    Done.   %_%
+echo.
+echo  %g_%The process took %ExecutionTime%%_%
+%separator%
+echo  %i_%%gn_% %_% %g_%Press %g__%^[%cc_%R%g_%^] to Redo. Press %g_%^[%r_%X%g_%^] to Close this window.%bk_%
+CHOICE /N /C RX
+if %errorlevel%==2 exit
+echo.&echo.&echo.
+goto Method2-Redo
+pause>nul&exit
+
 :SUB-Rename
 for %%D in (%xSelected%) do set "SelectedThingPath=%%~dpD"
 cd /d "%SelectedThingPath%"
@@ -84,14 +341,6 @@ echo               %g_%Rename subtitle to video file name.%_%
 echo.&echo.&echo.
 %STAGE1%
 echo.&call :Timer-start
-set FILEcount=0
-set MPcount=0
-set MKVcount=0
-set SUBcount=0
-set SUBScount=0
-set MATCHEDcount=0
-set VIDcount=0
-set VIDScount=0
 setlocal EnableDelayedExpansion
 for %%L in (*) do (
 	set "filename=%%~nxL"
@@ -124,7 +373,7 @@ set /a VIDcount+=1
 set /a FILEcount+=1
 set "FILEname%FILEcount%=%filename%"
 set "VIDfile%VIDcount%=%filename%"
-for %%f in (Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,x,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1) do (
+for %%f in (Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1) do (
 	if "!VIDfilter!"=="" set "VIDfilter=!filename:%%f=!"
 	set "VIDfilter=!VIDfilter:%%f=!"
 )
@@ -360,7 +609,7 @@ pause>nul&exit
 :SUB-Rename-Method3-Delim
 set "MatchCountLast="
 set "SUBfilter="
-for %%f in (Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,x,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1) do (
+for %%f in (Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,WebRip,Rip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1) do (
 	if "!SUBfilter!"=="" set "SUBfilter=!SUBselected:%%f=!"
 	set "SUBfilter=!SUBfilter:%%f=!"
 )
@@ -441,7 +690,7 @@ set "MatchCount%Scount%=%MatchCount%"
 set "MatchShow%Scount%=%MatchShowKey%"
 echo.
 echo %ESC%┌%yy_%📄 %MatchSUB%%ESC%
-echo %ESC%│   %MatchShowKey%
+echo %ESC%│%bk_%   %MatchShowKey%
 echo %ESC%└%c_%🎞  %MatchVID%%ESC%
 exit /b
 
@@ -681,6 +930,44 @@ set ExecutionTime=%show_hours%%show_mins%%secs%.%ms% seconds
 set "processingtime=The process took %ExecutionTime% ^|"
 exit /b
 
+:Config-Load                      
+REM Load Config from config.ini
+if not exist "%~dp0RCSR.config.ini" call :Config-GetDefault
+if exist "%~dp0RCSR.config.ini" (
+	for /f "usebackq tokens=1,2 delims==" %%C in ("%~dp0RCSR.config.ini") do (set "%%C=%%D")
+) else (
+	echo.&echo.&echo.&echo.
+	echo       %w_%Couldn't load RCSR.config.ini.   %r_%Access is denied.
+	echo       %w_%Try Run As Admin.%_%
+	%P5%&%p5%&exit
+)
+set "SubFilter=%SubFilter:"=%"
+set "SubFilter=%SubFilter:!=%"
+set "SubFilter=%SubFilter:(=%"
+set "SubFilter=%SubFilter:)=%"
+set "SubFilter=%SubFilter:<=%"
+set "SubFilter=%SubFilter:>=%"
+
+set "VidFilter=%VidFilter:"=%"
+set "VidFilter=%VidFilter:!=%"
+set "VidFilter=%VidFilter:(=%"
+set "VidFilter=%VidFilter:)=%"
+set "VidFilter=%VidFilter:<=%"
+set "VidFilter=%VidFilter:>=%"
+
+set "BypassConfirmation=%BypassConfirmation:"=%"
+EXIT /B
+
+:Config-GetDefault                
+cd /d "%~dp0"
+(
+	echo SubFilter="Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1"
+	echo VidFilter="Bluray,NF,WEB,DL,HD,BD,480p,720p,1080p,2160p,x265,x264,HEVC,10bit,6CH,Pahe.in,WebRip,WebDL,WebHD,DD+7,DD5.1,7.1CH,DD+5.1"
+	echo.
+	echo BypassConfirmation="No"
+)>"%~dp0RCSR.config.ini"
+EXIT /B
+
 :Setup                            
 rem Define color palette and some variables
 set "g_=[90m"
@@ -719,6 +1006,15 @@ set "Separator=echo %_%---------------------------------------------------------
 set "STAGE1=echo %i_%%cc_%1/2%_%%cc_% %u_%Searching Matching files..  %_%"
 set "STAGE2=echo %i_%%cc_%2/2%_%%cc_% %u_%Renaming files..            %_%"
 set "ExitWait=100"
+set FILEcount=0
+set MPcount=0
+set MKVcount=0
+set SUBcount=0
+set SUBScount=0
+set MATCHEDcount=0
+set VIDcount=0
+set VIDScount=0
+call :Config-Load
 
 rem Geting setup..
 if /i "%setup%" EQU "Deactivate" set "setup_select=2" &goto Setup-Choice
@@ -825,26 +1121,27 @@ rem Define registry root
 	set RegExASS=%HKEY%_CLASSES_ROOT\SystemFileAssociations\.ass\shell
 	set RegExSUB=%HKEY%_CLASSES_ROOT\SystemFileAssociations\.sub\shell
 	set RegExXML=%HKEY%_CLASSES_ROOT\SystemFileAssociations\.xml\shell
-
+	set RegExALL=%HKEY%_CLASSES_ROOT\*\shell
+	
 rem Generating setup_*.reg
 (
 	echo Windows Registry Editor Version 5.00
 
 	:REG-Context_Menu-SRT_Rename
 	echo [%RegExSRT%\RCSR.SRT.Rename]
-	echo "MUIVerb"="Rename Subtitle"
+	echo "MUIVerb"="Rename Subtitle (.srt)"
 	echo [%RegExSRT%\RCSR.SRT.Rename\command]
 	echo @="%SCMD% set \"Context=SRT.Rename\"%SRCSRexe% \"%%1\""
 
 	:REG-Context_Menu-ASS_Rename
 	echo [%RegExASS%\RCSR.ASS.Rename]
-	echo "MUIVerb"="Rename Subtitle"
+	echo "MUIVerb"="Rename Subtitle (.ass)"
 	echo [%RegExASS%\RCSR.ASS.Rename\command]
 	echo @="%SCMD% set \"Context=ASS.Rename\"%SRCSRexe% \"%%1\""
 	
 	:REG-Context_Menu-SUB_Rename
 	echo [%RegExSUB%\RCSR.SUB.Rename]
-	echo "MUIVerb"="Rename Subtitle"
+	echo "MUIVerb"="Rename Subtitle (.sub)"
 	echo [%RegExSUB%\RCSR.SUB.Rename\command]
 	echo @="%SCMD% set \"Context=SUB.Rename\"%SRCSRexe% \"%%1\""
 
@@ -853,6 +1150,12 @@ rem Generating setup_*.reg
 	echo "MUIVerb"="Rename XML"
 	echo [%RegExXML%\RCSR.XML.Rename\command]
 	echo @="%SCMD% set \"Context=XML.Rename\"%SRCSRexe% \"%%1\""
+	
+	:REG-Context_Menu-ALL_Rename
+	echo [%RegExALL%\RCSR.Universal.Rename]
+	echo "MUIVerb"="Rename Subtitle"
+	echo [%RegExALL%\RCSR.Universal.Rename\command]
+	echo @="%SCMD% set \"Context=All.Rename\"%SRCSRexe% \"%%1\""
 	
 )>>"%Setup_Write%"
 exit /b
