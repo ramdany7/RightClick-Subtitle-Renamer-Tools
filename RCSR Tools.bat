@@ -74,6 +74,7 @@ for %%L in (%xSelected%) do (
 cd /d "%SelectedThingPath%"
 
 if "%xSUBS%"=="1" (
+	rem echo       %i_%%w_% Gathering files.. %_%
 	for %%F in (*) do (
 		for %%V in (mkv,mp4) do if /i "%%~xF"==".%%V" set /a VIDS+=1
 		for %%S in (srt,ass,ssa,xml,sub,idx) do if /i "%%~xF"==".%%S" set /a SUBS+=1
@@ -179,6 +180,8 @@ for %%f in (%VidFilter%) do (
 set "Vfilter=%Vfilter:(=,%"
 set "Vfilter=%Vfilter:-=,%"
 set "Vfilter=%Vfilter:)=,%"
+set "Vfilter=%Vfilter:]=,%"
+set "Vfilter=%Vfilter:[=,%"
 set "Vfilter=%Vfilter:.=,%"
 set "Vfilter=%Vfilter:_=,%"
 set "Vfilter=%Vfilter: =,%"
@@ -216,6 +219,8 @@ for %%f in (%SubFilter%) do (
 set "Sfilter=%Sfilter:(=,%"
 set "Sfilter=%Sfilter:-=,%"
 set "Sfilter=%Sfilter:)=,%"
+set "Sfilter=%Sfilter:]=,%"
+set "Sfilter=%Sfilter:[=,%"
 set "Sfilter=%Sfilter:.=,%"
 set "Sfilter=%Sfilter:_=,%"
 set "Sfilter=%Sfilter: =,%"
@@ -310,13 +315,12 @@ if not %Vc%==0 for /L %%s in (1,1,%Sc%) do (
 	set matched=0
 	for /L %%v in (1,1,%Vc%) do (
 		set "match=0"
-		set "Mkey="
+		set "SMkey="
 		for %%S in (!Sfilter%%s!) do (
 			for %%V in (!Vfilter%%v!) do (
-				set "Key=%%S"
 				if /i "%%S"=="%%V" (
 					set /a match+=1
-					if /i "!Mkey!"=="" (set "Mkey=!Key!") else set "Mkey=!Mkey!, !Key!"
+					if /i "!SMkey!"=="" (set "SMkey=%%S"&set "VMkey=%%V") else set "SMkey=!SMkey!, %%S"&set "VMkey=!VMkey!, %%V"
 					if !match! gtr !matched! (
 						set "MVid=%%v"
 						set "MVfile=!Vfile%%v!"
@@ -328,7 +332,8 @@ if not %Vc%==0 for /L %%s in (1,1,%Sc%) do (
 						set "MSname=!Sname%%s!"
 						set  "MSext=!Sext%%s!"
 						
-						set "Mk=!Mkey!"
+						set "SMk=!SMkey!"
+						set "VMk=!VMkey!"
 						set "matched=!match!"
 					)
 				)
@@ -347,9 +352,47 @@ if not %Vc%==0 for /L %%s in (1,1,%Sc%) do (
 		
 		set "Mk%Mc%=!Mk!"
 		
+		set "MVNfilter="
+		for %%N in (%VidFilter%) do (
+			set "string=%%N"
+			if /i not "!MVname:%%N=!"=="!MVname!" (
+				call :StrLen String Lenght
+				set "Space="
+				for /L %%s in (1,1,!Lenght!) do (set Space=-!Space!)
+				for %%L in (!Space!) do (
+					if "!MVNfilter!"=="" set "MVNfilter=!MVname:%%N=%%L!"
+					set "MVNfilter=!MVNfilter:%%N=%%L!"
+				)
+			)
+		)
+		if "!MVNfilter!"=="" set "MVNfilter=!MVname!"
+		
+		set "SMkD="
+		for %%M in (!SMk!) do (
+			if "!SMkD!"=="" set SMkD=!MVNfilter:%%M=%g_%%%M%bk_%!
+			set SMkD=!SMkD:%%M=%g_%%%M%bk_%!
+		)
+
+		rem set "SMkDh="
+		rem for %%M in (!SMk!) do (
+		rem 	if "!SMkDh!"=="" set SMkDh=!MSname:%%M=%w_%%%M%w_%!
+		rem 	set SMkDh=!SMkDh:%%M=%w_%%%M%w_%!
+		rem )
+		
+		rem set "VMkD="
+		rem for %%M in (!SMk!) do (
+		rem 	if "!VMkD!"=="" set VMkD=!MVname:%%M=%g_%%%M%bk_%!
+		rem 	set VMkD=!VMkD:%%M=%g_%%%M%bk_%!
+		rem )
+		rem echo Vfilter : "!Vfilter!
+		rem echo SMk     :
+		rem echo VMk     :
+		rem echo Sfilter :
+		rem echo.
 		echo %ESC%┌%c_%🎞 %c_%!MVfile!%ESC%
-		echo %ESC%│%g_%🔗 %g_%!Mk!%ESC%
-		echo %ESC%└%w_%📄 %w_%!MSfile!%ESC%
+		echo %ESC%│%g_%🔗 %bk_%!SMkD!%ESC%
+		rem echo %ESC%│%g_%🔗 %bk_%!SMkD!%ESC%
+		echo %ESC%└%w_%📄 %w_%!MSname!!MSext!%ESC%
 		echo.
 	) else (
 		echo %ESC%%g_%┌%c_%🗋 %g_%%ESC%
@@ -359,7 +402,7 @@ if not %Vc%==0 for /L %%s in (1,1,%Sc%) do (
 	)
 )
 call :Timer-end
-echo  %g_%The process took %ExecutionTime% ^| ^(%SUBS%^) Subtitle ^(%VIDS%^) Video %_%
+echo  %g_%The process took %ExecutionTime% ^| Analyzed: ^(%SUBS%^) Subtitles  ^(%VIDS%^) Videos %_%
 %separator%
 if !matched! equ 0 echo  %g_%Press any key to close this window.&pause>nul&exit
 if /i not "%BypassConfirmation%"=="yes" (
@@ -414,6 +457,9 @@ pause>nul&exit
 
 :Method3
 %STAGE1%
+echo.
+echo    %g_%Would you rename it according file order^?
+echo    %g_%otherwise press M to analyze by file name.
 echo.
 %Separator%
 echo.
@@ -499,6 +545,19 @@ pause>nul&exit
 echo.&echo.&echo.
 echo %TAB%%w_%No Video ^& Subtitle selected.
 pause>nul&exit
+
+:StrLen  StrVar  [RtnVar]
+  setlocal EnableDelayedExpansion
+  set "s=#!%~1!"
+  set "len=0"
+  for %%N in (4096 2048 1024 512 256 128 64 32 16 8 4 2 1) do (
+    if "!s:~%%N,1!" neq "" (
+      set /a "len+=%%N"
+      set "s=!s:~%%N!"
+    )
+  )
+  endlocal&if "%~2" neq "" (set %~2=%len%) else echo %len%
+exit /b
 
 :FileSize                         
 if "%size_B%"=="" set size=0 KB&echo %r_%Error: Fail to get file size!%_% &exit /b
