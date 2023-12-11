@@ -458,8 +458,8 @@ pause>nul&exit
 :Method3
 %STAGE1%
 echo.
-echo    %g_%Would you rename it according file order^?
-echo    %g_%otherwise press M to analyze by file name.
+echo  %g_%Would you like to rename it according to the file order^?
+echo  %g_%Otherwise, press %cc_%M%g_% to analyze by file name.%_%
 echo.
 %Separator%
 echo.
@@ -875,7 +875,8 @@ rem Generating setup_*.reg
 	
 	:REG-Context_Menu-ALL_Rename
 	echo [%RegExALL%\RCSR.Universal.Rename]
-	echo "MUIVerb"="Rename Subtitle"
+	echo "MUIVerb"="Subtitle Renamer"
+	echo "Icon"="imageres.dll,-8314"
 	echo [%RegExALL%\RCSR.Universal.Rename\command]
 	echo @="%SCMD% set \"Context=All.Rename\"%SRCSRexe% \"%%1\""
 	
